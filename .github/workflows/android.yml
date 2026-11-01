@@ -1,0 +1,33 @@
+name: APK Android
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: write }
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap add android
+      - run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk Feuille.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: Feuille-apk, path: Feuille.apk }
+      - name: Publish as "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Feuille (dernière version)
+          prerelease: true
+          files: Feuille.apk
