@@ -9,7 +9,7 @@
   color: var(--ink);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) { color-scheme: dark;
     --sky-top: #1d2b53; --sky-bottom: #45507a; --cream: #2d2a3e; --paper: #37334b; --ink: #f3ead8; --ink-soft: #c2b59f;
     --shell: #2b2b33; --shell-edge: #1c1c22; --hinge: #3a3a44; --grass: #3f7d4c; --grass-dark: #2c5b37; --grass-light: #5b9e66;
   }
@@ -20,9 +20,10 @@ body {
   background: radial-gradient(circle at 20% 10%, #e9f7d8 0, transparent 40%),
     repeating-linear-gradient(45deg, var(--grass) 0 22px, var(--grass-light) 22px 44px);
   background-attachment: fixed; min-height: 100vh;
-  padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+  padding-block: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-@media (prefers-color-scheme: dark) { body { background: repeating-linear-gradient(45deg, #2c5b37 0 22px, #34693f 22px 44px); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { background: repeating-linear-gradient(45deg, #2c5b37 0 22px, #34693f 22px 44px); } }
 
 /* ---------- DS shell ---------- */
 .ds { max-width: 460px; margin: 0 auto; background: var(--shell); border-radius: 28px; padding: 14px;
@@ -131,3 +132,7 @@ footer { text-align: center; font-size: 11px; color: rgba(255,255,255,.9); margi
 html { background: var(--grass); }
 .tab { flex: 1 1 0; min-width: 0; font-size: 12px; padding: 6px 2px 8px; display: grid; justify-items: center; gap: 1px; }
 .tab .ti { font-size: 18px; line-height: 1; }
+:root[data-theme="dark"] { color-scheme: dark;
+  --sky-top: #1d2b53; --sky-bottom: #45507a; --cream: #2d2a3e; --paper: #37334b; --ink: #f3ead8; --ink-soft: #c2b59f;
+  --shell: #2b2b33; --shell-edge: #1c1c22; --hinge: #3a3a44; --grass: #3f7d4c; --grass-dark: #2c5b37; --grass-light: #5b9e66; }
+:root[data-theme="dark"] body { background: repeating-linear-gradient(45deg, #2c5b37 0 22px, #34693f 22px 44px); }

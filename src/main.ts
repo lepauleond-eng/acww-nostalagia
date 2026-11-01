@@ -117,8 +117,9 @@ function villagerModal(slot: number) {
   });
   m.querySelector<HTMLSelectElement>('#perso')?.addEventListener('change', e => { v.personality = Number((e.target as HTMLSelectElement).value); changed('Caractère modifié.'); });
   m.querySelector('#evict')?.addEventListener('click', () => {
-    if (!confirm('Faire partir ce villageois ? Sa maison peut rester en ville tant que le jeu ne l\'a pas retirée.')) return;
-    v.species = NO_VILLAGER; closeModal(); changed('Le villageois a fait ses valises. 👋');
+    askConfirm('Faire partir ce villageois ? Sa maison peut rester en ville tant que le jeu ne l\'a pas retirée.', 'Faire partir', () => {
+      v.species = NO_VILLAGER; changed('Le villageois a fait ses valises. 👋');
+    });
   });
 }
 
@@ -239,7 +240,10 @@ function bind() {
     s.townName = town.value; changed('Nom de la ville modifié.');
   };
   for (const id of ['#export', '#export2']) { const b = $(id); if (b) b.onclick = doExport; }
-  const close = $('#close'); if (close) close.onclick = () => { if (!state.dirty || confirm('Fermer sans exporter les modifications ?')) { state.save = null; state.dirty = false; render(); } };
+  const close = $('#close'); if (close) close.onclick = () => {
+    const reset = () => { state.save = null; state.dirty = false; render(); };
+    if (!state.dirty) reset(); else askConfirm('Fermer sans exporter les modifications ?', 'Fermer', reset);
+  };
   const imgs = $<HTMLInputElement>('#imgs');
   if (imgs) imgs.onchange = async () => {
     if (!imgs.files?.length) return;
@@ -264,6 +268,7 @@ async function openFile(f: File) {
 
 async function doExport() {
   const s = state.save!;
+  if (import.meta.env.VITE_PREVIEW) { toast("Aperçu : l'export marche dans l'app installée."); return; }
   try {
     const name = state.fileName.replace(/(\.[^.]+)?$/, m => `-modifie${m || '.sav'}`);
     const msg = await saveFile(s.export(), name);
@@ -282,9 +287,20 @@ function modal(html: string): HTMLElement {
   setTimeout(() => bg.querySelector<HTMLInputElement>('#q')?.focus({ preventScroll: true }), 50);
   return bg.querySelector('.modal')!;
 }
+function askConfirm(question: string, okLabel: string, onOk: () => void) {
+  const m = modal(`<h2>🤔 ${esc(question)}</h2><button class="btn pink" id="ok">${esc(okLabel)}</button>`);
+  m.querySelector('#ok')!.addEventListener('click', () => { closeModal(); onOk(); });
+}
 function closeModal() { document.querySelector('.modal-bg')?.remove(); }
 
 window.addEventListener('beforeunload', e => { if (state.dirty) e.preventDefault(); });
 if ('serviceWorker' in navigator && import.meta.env.PROD && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 
-loadImages().finally(render);
+loadImages().finally(async () => {
+  if (import.meta.env.VITE_PREVIEW) {
+    const { demoSave } = await import('./demo');
+    state.save = new AcwwSave(demoSave()); state.fileName = 'exemple.sav';
+  }
+  render();
+  if (import.meta.env.VITE_PREVIEW) toast('Aperçu avec une ville d\'exemple 🍃');
+});

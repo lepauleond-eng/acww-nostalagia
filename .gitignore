@@ -3,3 +3,4 @@ dist/
 android/
 *.sav
 !tests/**/*.sav
+dist-preview/
