@@ -136,3 +136,42 @@ html { background: var(--grass); }
   --sky-top: #1d2b53; --sky-bottom: #45507a; --cream: #2d2a3e; --paper: #37334b; --ink: #f3ead8; --ink-soft: #c2b59f;
   --shell: #2b2b33; --shell-edge: #1c1c22; --hinge: #3a3a44; --grass: #3f7d4c; --grass-dark: #2c5b37; --grass-light: #5b9e66; }
 :root[data-theme="dark"] body { background: repeating-linear-gradient(45deg, #2c5b37 0 22px, #34693f 22px 44px); }
+/* v2: drawn art */
+.avatar.art { background: radial-gradient(circle at 50% 35%, #fff, #f3ead8); overflow: hidden; }
+.avatar.art svg, .avatar.icon svg { width: 100%; height: 100%; display: block; }
+.avatar.icon { background: #fff3c4; padding: 5px; }
+.slot .ico { width: 28px; height: 28px; margin: 0 auto 2px; display: block; }
+.look-grid { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+@media (max-width: 400px) { .look-grid { grid-template-columns: 1fr; justify-items: center; } }
+.mirror { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 40%, #fff 0, var(--grass-light) 70%); border: 6px solid var(--wood); box-shadow: inset 0 -6px 0 rgba(0,0,0,.08), var(--shadow); }
+.bob { animation: bob 2.6s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-4px) rotate(2deg); } }
+.look-btns { display: grid; gap: 8px; width: 100%; min-width: 0; }
+.look-btn { display: flex; gap: 10px; align-items: center; text-align: left; font: inherit; color: var(--ink); background: var(--cream); border: 2px solid var(--shell-edge);
+  border-radius: 14px; padding: 6px 10px; cursor: pointer; transition: transform .12s, border-color .12s; }
+.look-btn:hover { border-color: var(--accent-2); transform: translateX(2px); }
+.look-btn small, .tan-row small { display: block; color: var(--ink-soft); font-size: 11px; }
+.look-btn b { font-size: 14px; }
+.lb-ico { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; background: #fff; }
+.lb-ico.swatch { border: 3px solid #fff; box-shadow: 0 0 0 2px var(--shell-edge); border-radius: 50%; }
+.tan-row div { display: flex; gap: 8px; margin-top: 4px; }
+.tan { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--shell-edge); cursor: pointer; transition: transform .12s; }
+.tan.on { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.12); }
+.palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px; background: var(--paper); border-radius: 16px;
+  box-shadow: var(--shadow); border: 2px solid var(--accent-2); }
+.palette.open { animation: palette .35s cubic-bezier(.2,1.4,.4,1); transform-origin: top center; }
+@keyframes palette { from { transform: scale(.6) translateY(-10px); opacity: 0; } }
+.sw { font: inherit; font-size: 11px; color: var(--ink); background: none; border: 0; cursor: pointer; display: grid; justify-items: center; gap: 3px; padding: 4px; border-radius: 10px; }
+.sw span { width: 36px; height: 36px; border-radius: 50%; background: var(--c); border: 3px solid #fff; box-shadow: 0 0 0 2px var(--shell-edge), inset 0 -5px 0 rgba(0,0,0,.15); transition: transform .15s; }
+.sw:hover span { transform: scale(1.12) rotate(-6deg); } .sw.on span { box-shadow: 0 0 0 3px var(--accent), inset 0 -5px 0 rgba(0,0,0,.15); }
+.palette .sw { animation: pop .3s backwards; }
+.palette .sw:nth-child(2) { animation-delay: .03s } .palette .sw:nth-child(3) { animation-delay: .06s } .palette .sw:nth-child(4) { animation-delay: .09s }
+.palette .sw:nth-child(5) { animation-delay: .12s } .palette .sw:nth-child(6) { animation-delay: .15s } .palette .sw:nth-child(7) { animation-delay: .18s } .palette .sw:nth-child(8) { animation-delay: .21s }
+.look-cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 400px) { .look-cells { grid-template-columns: repeat(2, 1fr); } }
+.look-cell { font: inherit; font-size: 11px; color: var(--ink); background: var(--paper); border: 2px solid transparent; border-radius: 14px; padding: 6px 4px; cursor: pointer;
+  display: grid; justify-items: center; gap: 2px; line-height: 1.2; transition: transform .12s; }
+.look-cell:hover { transform: translateY(-2px); border-color: var(--accent-2); } .look-cell.on { border-color: var(--accent); background: #fff0f4; }
+.grid { gap: 8px; } .vcard { min-width: 0; }
+.avatar.art { width: 54px; height: 54px; }

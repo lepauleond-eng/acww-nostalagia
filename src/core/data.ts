@@ -1,8 +1,9 @@
 import villagersRaw from './data/villagers.json';
 import itemsRaw from './data/items.json';
+import itemsFr from './data/items-fr.json';
 
-export interface VillagerInfo { id: number; name: string; species: string; }
-export interface ItemInfo { id: number; name: string; category: string; }
+export interface VillagerInfo { id: number; name: string; fr: string; species: string; }
+export interface ItemInfo { id: number; name: string; fr: string | null; category: string; }
 
 export const SPECIES_FR: Record<string, string> = {
   Anteater: 'Fourmilier', Bear: 'Ours', Bird: 'Oiseau', Bull: 'Taureau', Cat: 'Chat', Cub: 'Ourson',
@@ -32,7 +33,7 @@ export const PERSONALITIES_FR = ['Paresseux ♂', 'Sportif ♂', 'Grincheux ♂'
 export const VILLAGERS: VillagerInfo[] = villagersRaw as VillagerInfo[];
 export const VILLAGER_BY_ID = new Map(VILLAGERS.map(v => [v.id, v]));
 
-export const ITEMS: ItemInfo[] = (itemsRaw as [number, string, string][]).map(([id, name, category]) => ({ id, name, category }));
+export const ITEMS: ItemInfo[] = (itemsRaw as [number, string, string][]).map(([id, name, category]) => ({ id, name, category, fr: (itemsFr as Record<string, string>)[id] ?? null }));
 export const ITEM_BY_ID = new Map(ITEMS.map(i => [i.id, i]));
 
 /** Categories that make sense in the player's pockets (not trees, rocks, buildings…). */
@@ -51,5 +52,7 @@ export const CATEGORY_FR: Record<string, string> = {
 
 export function itemName(id: number): string {
   if (id === 0xfff1) return '— vide —';
-  return ITEM_BY_ID.get(id)?.name ?? `Objet 0x${id.toString(16).toUpperCase().padStart(4, '0')}`;
+  const it = ITEM_BY_ID.get(id);
+  if (it) return it.fr ?? it.name;
+  return `Objet 0x${id.toString(16).toUpperCase().padStart(4, '0')}`;
 }

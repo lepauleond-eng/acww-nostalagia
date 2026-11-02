@@ -29,6 +29,7 @@ npx cap add android && npx cap sync android   # projet Android (Capacitor)
 ```
 
 ## Crédits
+Noms français : noms officiels repris d'[Norviah/animal-crossing](https://github.com/Norviah/animal-crossing) (MIT) quand l'objet existe aussi dans New Horizons, sinon traduction maison (script `scripts/gen-fr.py`). Les dessins (joueur, villageois, objets) sont originaux.
 Format de sauvegarde documenté par [ACWW Research (Universal-Team)](https://wiki.universal-team.net/acww-research/) et l'éditeur [LeafEdit](https://github.com/Universal-Team/LeafEdit) (GPLv3), dont proviennent aussi les listes d'identifiants des villageois et des objets.
 Projet de fan non officiel. Animal Crossing est une marque de Nintendo ; aucune image ni donnée du jeu n'est incluse. Les avatars sont des créations originales.
 

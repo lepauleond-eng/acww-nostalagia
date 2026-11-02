@@ -35,7 +35,7 @@ export function imageFor(id: number): string | undefined { return cache.get(id);
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export async function importImages(files: FileList): Promise<{ ok: number; unknown: string[] }> {
-  const byName = new Map(VILLAGERS.map(v => [norm(v.name), v.id]));
+  const byName = new Map(VILLAGERS.flatMap(v => [[norm(v.name), v.id], [norm(v.fr), v.id]] as [string, number][]));
   let ok = 0; const unknown: string[] = [];
   let db: IDBDatabase | null = null;
   try { db = await open(); } catch { /* keep in memory only */ }

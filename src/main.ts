@@ -5,6 +5,9 @@ import { VILLAGERS, VILLAGER_BY_ID, SPECIES_FR, SPECIES_STYLE, PERSONALITIES_FR,
 import { isEncodable } from './core/charset';
 import { saveFile } from './export';
 import { loadImages, imageFor, importImages, clearImages } from './images';
+import { villagerSvg } from './art/villager';
+import { itemIconSvg } from './art/items';
+import { playerSvg, HAIRSTYLES, FACES, HAIR_COLORS, skinFor, tanLabel, TAN_LEVELS } from './art/player';
 
 type Tab = 'ville' | 'villageois' | 'joueurs' | 'poches' | 'astuces';
 const state: { save: AcwwSave | null; fileName: string; tab: Tab; player: number; dirty: boolean } =
@@ -14,21 +17,16 @@ const app = document.getElementById('app')!;
 const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const fmt = (n: number) => n.toLocaleString('fr-FR');
 
-const CAT_ICON: Record<string, string> = {
-  Fish: '🐟', Insects: '🦋', Furniture: '🪑', Shirts: '👕', Hats: '🎩', 'Glasses/Masks': '🕶️', Umbrellas: '☂️', Tools: '🪓',
-  Bells: '💰', Fruit: '🍎', Flowers: '🌷', 'Flower Bags': '🌱', Saplings: '🌳', Songs: '🎵', Wallpaper: '🧱', Carpets: '🟫',
-  Stationary: '✉️', Paint: '🎨', Turnips: '🥬', Fossil: '🦴', 'Sea Shells': '🐚', Garbage: '🥾', Items: '🎁',
-};
-const itemIcon = (id: number) => (id === EMPTY_ITEM ? '' : CAT_ICON[ITEM_BY_ID.get(id)?.category ?? ''] ?? '📦');
+const itemIcon = (id: number) => (id === EMPTY_ITEM ? '' : itemIconSvg(ITEM_BY_ID.get(id)?.category ?? ''));
 
 function avatar(id: number, size = ''): string {
   const v = VILLAGER_BY_ID.get(id);
   if (!v) return `<span class="avatar ${size}">❔</span>`;
   const img = imageFor(id);
-  const st = SPECIES_STYLE[v.species] ?? { emoji: '🍃', color: '#cde' };
+  const st = SPECIES_STYLE[v.species] ?? { color: '#cde' };
   return img
     ? `<span class="avatar" style="background-image:url('${img}');background-color:${st.color}"></span>`
-    : `<span class="avatar" style="background:${st.color}">${st.emoji}</span>`;
+    : `<span class="avatar art">${villagerSvg(v.species, v.id)}</span>`;
 }
 
 function toast(msg: string) {
@@ -72,13 +70,13 @@ function villagersPanel(s: AcwwSave): string {
   const cards = s.villagers.map((v, i) => {
     const info = VILLAGER_BY_ID.get(v.species);
     return v.exists && info
-      ? `<button class="vcard" data-vslot="${i}" style="animation-delay:${i * 40}ms">${avatar(v.species)}<div class="nm">${esc(info.name)}</div><div class="sp">${SPECIES_FR[info.species] ?? info.species}</div></button>`
+      ? `<button class="vcard" data-vslot="${i}" style="animation-delay:${i * 40}ms">${avatar(v.species)}<div class="nm">${esc(info.fr)}</div><div class="sp">${SPECIES_FR[info.species] ?? info.species}</div></button>`
       : `<button class="vcard empty" data-vslot="${i}" style="animation-delay:${i * 40}ms"><span class="avatar">🏚️</span><div class="nm">Libre</div><div class="sp">emplacement ${i + 1}</div></button>`;
   }).join('');
   return `<div class="panel"><h2>🐾 Tes villageois</h2><div class="hint">Touche un villageois pour le remplacer ou changer son caractère.</div>
     <div class="grid">${cards}</div>
     <div class="card" style="margin-top:14px"><h2>🖼️ Tes images</h2>
-      <div class="hint">Importe tes propres images, nommées comme le villageois (ex. <i>Bob.png</i>, <i>Rosie.jpg</i>). Elles restent sur ton appareil.</div>
+      <div class="hint">Importe tes propres images, nommées comme le villageois (ex. <i>Robert.png</i> ou <i>Bob.png</i>). Elles restent sur ton appareil.</div>
       <div class="row"><label class="btn green" style="display:inline-block;padding:10px 16px;border-radius:14px;cursor:pointer;color:#fff;font-weight:600;background:var(--grass);box-shadow:0 4px 0 var(--grass-dark)">Importer des images<input type="file" id="imgs" accept="image/*" multiple hidden></label>
       <button class="btn ghost" id="clearimgs">Effacer</button></div></div></div>`;
 }
@@ -100,10 +98,10 @@ function villagerModal(slot: number) {
     let html = '';
     for (const [sp, arr] of bySpecies) {
       const spFr = SPECIES_FR[sp] ?? sp;
-      const hits = arr.filter(x => !nq || x.name.toLowerCase().includes(nq) || spFr.toLowerCase().includes(nq));
+      const hits = arr.filter(x => !nq || x.fr.toLowerCase().includes(nq) || x.name.toLowerCase().includes(nq) || spFr.toLowerCase().includes(nq));
       if (!hits.length) continue;
-      html += `<div class="group">${SPECIES_STYLE[sp]?.emoji ?? ''} ${spFr}</div>` +
-        hits.map(x => `<button class="opt" data-pick="${x.id}">${avatar(x.id)}<span><b>${esc(x.name)}</b><small>${spFr}</small></span></button>`).join('');
+      html += `<div class="group">${spFr}</div>` +
+        hits.map(x => `<button class="opt" data-pick="${x.id}">${avatar(x.id)}<span><b>${esc(x.fr)}</b><small>${spFr}${x.fr !== x.name ? ` · ${esc(x.name)} en anglais` : ''}</small></span></button>`).join('');
     }
     list.innerHTML = html || '<div class="hint">Aucun résultat.</div>';
   };
@@ -113,7 +111,7 @@ function villagerModal(slot: number) {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-pick]'); if (!b) return;
     const id = Number(b.dataset.pick);
     if (s.villagers.some((o, i) => i !== slot && o.species === id)) { toast('Ce villageois habite déjà en ville.'); return; }
-    v.species = id; closeModal(); changed(`Bienvenue à ${VILLAGER_BY_ID.get(id)?.name} ! 🎉`);
+    v.species = id; closeModal(); changed(`Bienvenue à ${VILLAGER_BY_ID.get(id)?.fr} ! 🎉`);
   });
   m.querySelector<HTMLSelectElement>('#perso')?.addEventListener('change', e => { v.personality = Number((e.target as HTMLSelectElement).value); changed('Caractère modifié.'); });
   m.querySelector('#evict')?.addEventListener('click', () => {
@@ -131,26 +129,53 @@ function playerSelect(s: AcwwSave): string {
 function playersPanel(s: AcwwSave): string {
   const p = s.players[state.player];
   if (!p.exists) return `<div class="panel"><div class="hint">Aucun joueur dans cette sauvegarde.</div></div>`;
-  const opts = (n: number, cur: number, label: (i: number) => string) => Array.from({ length: n }, (_, i) => `<option value="${i}" ${cur === i ? 'selected' : ''}>${label(i)}</option>`).join('');
+  const hc = HAIR_COLORS[p.hairColor % HAIR_COLORS.length];
   return `<div class="panel"><h2>🧑 Joueur</h2><div class="row" style="margin-bottom:10px">${playerSelect(s)}</div>
     <div class="card"><div class="row"><span class="pill">${p.gender === 'garçon' ? '👦' : '👧'} ${esc(p.name)}</span></div>
       <div class="row" style="margin-top:10px">
         <label class="field">💰 Porte-monnaie (max ${fmt(WALLET_MAX)})<input type="number" inputmode="numeric" min="0" max="${WALLET_MAX}" id="wallet" value="${p.wallet}"></label>
         <label class="field">🏦 Banque (max ${fmt(BANK_MAX)})<input type="number" inputmode="numeric" min="0" max="${BANK_MAX}" id="bank" value="${p.bank}"></label>
       </div></div>
-    <div class="card"><h2>💇 Apparence</h2><div class="row">
-      <label class="field">Coiffure<select data-look="hairstyle">${opts(16, p.hairstyle, i => `Coiffure ${i + 1}`)}</select></label>
-      <label class="field">Couleur<select data-look="hairColor">${opts(8, p.hairColor, i => `Couleur ${i + 1}`)}</select></label>
-      <label class="field">Visage<select data-look="face">${opts(16, p.face, i => `Visage ${i + 1}`)}</select></label>
-      <label class="field">Bronzage<select data-look="tan">${opts(16, p.tan, i => (i ? `Niveau ${i}` : 'Aucun'))}</select></label>
-    </div></div></div>`;
+    <div class="card look"><h2>💇 Apparence</h2>
+      <div class="look-grid">
+        <div class="mirror">${playerSvg({ hairstyle: p.hairstyle, hairColor: p.hairColor, face: p.face, tan: p.tan, size: 132, cls: 'bob' })}</div>
+        <div class="look-btns">
+          <button class="look-btn" id="pick-hair"><span class="lb-ico">${playerSvg({ hairstyle: p.hairstyle, hairColor: p.hairColor, face: p.face, tan: 0, size: 40 })}</span><span><small>Coiffure</small><b>${HAIRSTYLES[p.hairstyle] ?? `n°${p.hairstyle + 1}`}</b></span></button>
+          <button class="look-btn" id="pick-color"><span class="lb-ico swatch" style="background:${hc.hex}"></span><span><small>Couleur des cheveux</small><b>${hc.name}</b></span></button>
+          <button class="look-btn" id="pick-face"><span class="lb-ico">${playerSvg({ hairstyle: p.hairstyle, hairColor: p.hairColor, face: p.face, tan: 0, size: 40 })}</span><span><small>Visage</small><b>${FACES[p.face] ?? `n°${p.face + 1}`}</b></span></button>
+          <div class="tan-row" role="group" aria-label="Bronzage"><small>Bronzage : <b>${tanLabel(p.tan)}</b></small>
+            <div>${Array.from({ length: TAN_LEVELS }, (_, i) => `<button class="tan ${p.tan === i ? 'on' : ''}" data-tan="${i}" title="${tanLabel(i)}" style="background:${skinFor(i)}"></button>`).join('')}</div></div>
+        </div>
+      </div>
+      <div class="hint">Les coiffures et visages 1 à 8 sont ceux des garçons, 9 à 16 ceux des filles. Dans le jeu, le salon de coiffure ne propose que ceux de ton genre.</div>
+    </div>
+    <div id="palette" class="palette" hidden>${HAIR_COLORS.map((c, i) => `<button class="sw ${p.hairColor === i ? 'on' : ''}" data-color="${i}" style="--c:${c.hex}"><span></span>${c.name}</button>`).join('')}</div>
+  </div>`;
+}
+
+function lookModal(kind: 'hair' | 'face') {
+  const p = state.save!.players[state.player];
+  const list = kind === 'hair' ? HAIRSTYLES : FACES;
+  const cur = kind === 'hair' ? p.hairstyle : p.face;
+  const cell = (i: number) => `<button class="look-cell ${cur === i ? 'on' : ''}" data-look-pick="${i}">
+      ${playerSvg({ hairstyle: kind === 'hair' ? i : p.hairstyle, hairColor: p.hairColor, face: kind === 'face' ? i : p.face, tan: p.tan, size: 76 })}
+      <span><b>${i + 1}.</b> ${list[i]}</span></button>`;
+  const m = modal(`<h2>${kind === 'hair' ? '💇 Choisir une coiffure' : '👀 Choisir un visage'}</h2>
+    <div class="list"><div class="group">Garçon</div><div class="look-cells">${[0, 1, 2, 3, 4, 5, 6, 7].map(cell).join('')}</div>
+    <div class="group">Fille</div><div class="look-cells">${[8, 9, 10, 11, 12, 13, 14, 15].map(cell).join('')}</div></div>`);
+  m.addEventListener('click', e => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-look-pick]'); if (!b) return;
+    const v = Number(b.dataset.lookPick);
+    if (kind === 'hair') p.hairstyle = v; else p.face = v;
+    closeModal(); changed(kind === 'hair' ? `Nouvelle coiffure : ${list[v]} ✂️` : `Nouveau visage : ${list[v]}`);
+  });
 }
 
 function pocketsPanel(s: AcwwSave): string {
   const p = s.players[state.player];
   const slots = Array.from({ length: 15 }, (_, i) => {
     const id = p.pocket(i);
-    return `<button class="slot ${id !== EMPTY_ITEM ? 'filled' : ''}" data-pocket="${i}"><span><span class="ico">${itemIcon(id) || '·'}</span>${id !== EMPTY_ITEM ? esc(itemName(id)) : ''}</span></button>`;
+    return `<button class="slot ${id !== EMPTY_ITEM ? 'filled' : ''}" data-pocket="${i}"><span><span class="ico">${itemIcon(id) || ''}</span>${id !== EMPTY_ITEM ? esc(itemName(id)) : ''}</span></button>`;
   }).join('');
   return `<div class="panel"><h2>🎒 Poches</h2><div class="row" style="margin-bottom:10px">${playerSelect(s)}</div>
     <div class="hint">Touche une case pour y mettre n'importe quel objet du jeu.</div><div class="pockets">${slots}</div></div>`;
@@ -159,13 +184,17 @@ function pocketsPanel(s: AcwwSave): string {
 function itemModal(slot: number) {
   const p = state.save!.players[state.player];
   const pool = ITEMS.filter(i => POCKET_CATEGORIES.has(i.category));
-  const m = modal(`<h2>🎁 Choisir un objet</h2><input id="q" placeholder="Rechercher un objet (nom anglais pour l'instant)…" autocomplete="off">
+  const m = modal(`<h2>🎁 Choisir un objet</h2><input id="q" placeholder="Rechercher un objet (français ou anglais)…" autocomplete="off">
     <div class="list" id="list"></div><button class="btn ghost" id="empty">Vider la case</button>`);
   const list = m.querySelector('#list')!;
   const draw = (q: string) => {
     const nq = q.trim().toLowerCase();
-    const hits = pool.filter(i => !nq || i.name.toLowerCase().includes(nq) || (CATEGORY_FR[i.category] ?? '').toLowerCase().includes(nq)).slice(0, 150);
-    list.innerHTML = hits.map(i => `<button class="opt" data-item="${i.id}"><span class="avatar" style="background:#fff3c4">${CAT_ICON[i.category] ?? '📦'}</span><span><b>${esc(i.name)}</b><small>${CATEGORY_FR[i.category] ?? i.category}</small></span></button>`).join('')
+    const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const fq = fold(nq);
+    const hits = pool.filter(i => !fq || fold(i.fr ?? '').includes(fq) || i.name.toLowerCase().includes(fq) || fold(CATEGORY_FR[i.category] ?? '').includes(fq))
+      .map(i => { const f = fold(i.fr ?? ''); return { i, r: !fq ? 0 : f.startsWith(fq) ? 0 : new RegExp(`\\b${fq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(f) ? 1 : i.fr ? 2 : 3 }; })
+      .sort((a, b) => a.r - b.r).map(x => x.i).slice(0, 150);
+    list.innerHTML = hits.map(i => `<button class="opt" data-item="${i.id}"><span class="avatar icon">${itemIconSvg(i.category)}</span><span><b>${esc(i.fr ?? i.name)}</b><small>${CATEGORY_FR[i.category] ?? i.category}${i.fr ? ` · ${esc(i.name)}` : ' · nom anglais'}</small></span></button>`).join('')
       || '<div class="hint">Aucun objet trouvé.</div>';
   };
   draw('');
@@ -230,9 +259,14 @@ function bind() {
   const p = s.players[state.player];
   const wallet = $<HTMLInputElement>('#wallet'); if (wallet) wallet.onchange = () => { p.wallet = Number(wallet.value); changed('Porte-monnaie mis à jour.'); };
   const bank = $<HTMLInputElement>('#bank'); if (bank) bank.onchange = () => { p.bank = Number(bank.value); changed('Compte en banque mis à jour.'); };
-  app.querySelectorAll<HTMLSelectElement>('[data-look]').forEach(sel => sel.onchange = () => {
-    (p as unknown as Record<string, number>)[sel.dataset.look!] = Number(sel.value); changed('Apparence modifiée.');
-  });
+  const ph = $('#pick-hair'); if (ph) ph.onclick = () => lookModal('hair');
+  const pf = $('#pick-face'); if (pf) pf.onclick = () => lookModal('face');
+  const pc = $('#pick-color'), pal = $('#palette');
+  if (pc && pal) {
+    pc.onclick = () => { pal.hidden = !pal.hidden; if (!pal.hidden) { pc.after(pal); pal.classList.remove('open'); void pal.offsetWidth; pal.classList.add('open'); } };
+    pal.querySelectorAll<HTMLElement>('[data-color]').forEach(b => b.onclick = () => { p.hairColor = Number(b.dataset.color); changed(`Cheveux : ${HAIR_COLORS[p.hairColor].name}`); });
+  }
+  app.querySelectorAll<HTMLElement>('[data-tan]').forEach(b => b.onclick = () => { p.tan = Number(b.dataset.tan); changed(`Bronzage : ${tanLabel(p.tan)}`); });
   const town = $<HTMLInputElement>('#town');
   if (town) town.onchange = () => {
     const bad = [...town.value].filter(c => !isEncodable(c));
