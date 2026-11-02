@@ -77,3 +77,18 @@ describe('AcwwSave', () => {
     expect(new AcwwSave(s.export()).checksumValid).toBe(true);
   });
 });
+
+import { buildFromTemplate } from '../src/template';
+describe('create from template', () => {
+  it('builds a valid save with the chosen town, player and villagers', () => {
+    const out = new AcwwSave(buildFromTemplate(fakeSave(), {
+      townName: 'Feuilly', playerName: 'Zoé', villagers: [100, 101, 102, 103, 104, 105, 106, 107], wallet: 5000, bank: 10,
+      hairstyle: 10, hairColor: 3, face: 9, tan: 1, emptyPockets: true,
+    }).export());
+    expect(out.checksumValid).toBe(true);
+    expect(out.townName).toBe('Feuilly');
+    expect(out.players[0].name).toBe('Zoé');
+    expect(out.players[0].hairstyle).toBe(10);
+    expect(out.villagers.map(v => v.species)).toEqual([100, 101, 102, 103, 104, 105, 0xff, 0xff]);
+  });
+});

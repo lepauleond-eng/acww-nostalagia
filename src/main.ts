@@ -7,11 +7,13 @@ import { saveFile } from './export';
 import { loadImages, imageFor, importImages, clearImages } from './images';
 import { villagerSvg } from './art/villager';
 import { itemIconSvg } from './art/items';
+import { getTemplate, setTemplate, clearTemplate, buildFromTemplate, randomVillagers, NewTownOptions } from './template';
 import { playerSvg, HAIRSTYLES, FACES, HAIR_COLORS, skinFor, tanLabel, TAN_LEVELS } from './art/player';
 
 type Tab = 'ville' | 'villageois' | 'joueurs' | 'poches' | 'astuces';
-const state: { save: AcwwSave | null; fileName: string; tab: Tab; player: number; dirty: boolean } =
-  { save: null, fileName: 'ACWW.sav', tab: 'villageois', player: 0, dirty: false };
+const state: { save: AcwwSave | null; fileName: string; tab: Tab; player: number; dirty: boolean; creating: boolean; template: Uint8Array | null; draft: NewTownOptions } =
+  { save: null, fileName: 'ACWW.sav', tab: 'villageois', player: 0, dirty: false, creating: false, template: null,
+    draft: { townName: 'Feuilly', playerName: 'Lou', villagers: randomVillagers(), wallet: 1000, bank: 0, hairstyle: 0, hairColor: 0, face: 0, tan: 0, emptyPockets: true } };
 
 const app = document.getElementById('app')!;
 const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -62,8 +64,108 @@ function loadPanel(): string {
   return `<div class="panel"><label class="drop" id="drop"><span class="big">📂</span>
       <b>Touche ici pour ouvrir ta sauvegarde</b><div class="hint">Fichier .sav (ou .dsv DeSmuME) de la version FR / EUR.<br>Tout reste sur ton appareil, rien n'est envoyé en ligne.</div>
       <input type="file" id="file" accept=".sav,.dsv,.bin,application/octet-stream" hidden></label>
+    <button class="create-cta" id="go-create"><span class="big">✨</span><span><b>Créer une nouvelle sauvegarde</b><small>Choisis le nom de ta ville, ton perso et tes villageois.</small></span></button>
     <div class="card" style="margin-top:14px"><h2>💡 Comment récupérer le .sav ?</h2>
       <div class="hint">Avec une carte type R4 / TWiLight Menu, le fichier est à côté du jeu sur la carte SD. Sur émulateur (DeSmuME, melonDS, DraStic), exporte la sauvegarde depuis le menu. Garde toujours une copie de l'original.</div></div></div>`;
+}
+
+function createPanel(): string {
+  const d = state.draft;
+  if (!state.template) {
+    return `<div class="panel"><h2>✨ Créer une sauvegarde</h2>
+      <div class="card"><div class="hint" style="margin-top:0">Dans Wild World, la carte de la ville, les maisons et les bâtiments sont générés par le jeu. Feuille a donc besoin d'une <b>sauvegarde modèle</b>, une seule fois : n'importe quel .sav FR, même une ville toute neuve créée en 5 minutes sur la DS ou un émulateur.</div>
+      <div class="hint">Le modèle reste sur ton appareil. Ensuite, tu peux créer autant de nouvelles sauvegardes que tu veux à partir de lui, sans rien d'autre.</div>
+      <label class="btn green filebtn">📂 Choisir la sauvegarde modèle<input type="file" id="tplfile" accept=".sav,.dsv,.bin,application/octet-stream" hidden></label></div>
+      <button class="btn ghost" id="cancel-create">← Retour</button></div>`;
+  }
+  const hc = HAIR_COLORS[d.hairColor];
+  const vcards = d.villagers.map((id, i) => {
+    const info = VILLAGER_BY_ID.get(id);
+    return `<button class="vcard" data-draft-v="${i}">${avatar(id)}<div class="nm">${esc(info?.fr ?? '?')}</div><div class="sp">${SPECIES_FR[info?.species ?? ''] ?? ''}</div></button>`;
+  }).join('');
+  return `<div class="panel"><h2>✨ Créer une sauvegarde</h2>
+    <div class="card"><div class="row">
+      <label class="field">🏡 Nom de la ville<input id="d-town" maxlength="8" value="${esc(d.townName)}"></label>
+      <label class="field">🧑 Ton prénom<input id="d-name" maxlength="8" value="${esc(d.playerName)}"></label></div></div>
+    <div class="card look"><h2>💇 Ton perso</h2><div class="look-grid">
+      <div class="mirror">${playerSvg({ hairstyle: d.hairstyle, hairColor: d.hairColor, face: d.face, tan: d.tan, size: 132, cls: 'bob' })}</div>
+      <div class="look-btns">
+        <button class="look-btn" id="d-hair"><span class="lb-ico">${playerSvg({ ...d, tan: 0, size: 40 })}</span><span><small>Coiffure</small><b>${HAIRSTYLES[d.hairstyle]}</b></span></button>
+        <button class="look-btn" id="d-color"><span class="lb-ico swatch" style="background:${hc.hex}"></span><span><small>Couleur des cheveux</small><b>${hc.name}</b></span></button>
+        <div id="d-palette" class="palette" hidden>${HAIR_COLORS.map((c, i) => `<button class="sw ${d.hairColor === i ? 'on' : ''}" data-dcolor="${i}" style="--c:${c.hex}"><span></span>${c.name}</button>`).join('')}</div>
+        <button class="look-btn" id="d-face"><span class="lb-ico">${playerSvg({ ...d, tan: 0, size: 40 })}</span><span><small>Visage</small><b>${FACES[d.face]}</b></span></button>
+      </div></div></div>
+    <div class="card"><h2>🐾 Tes villageois</h2><div class="hint" style="margin-top:0">Touche un villageois pour le changer. Le modèle a ${state.template ? new AcwwSave(state.template).villagers.filter(v => v.exists).length : 0} maisons occupées : seuls ces emplacements sont remplis.</div>
+      <div class="grid">${vcards}</div><div class="row" style="margin-top:10px"><button class="btn" id="d-random">🎲 Villageois au hasard</button></div></div>
+    <div class="card"><div class="row">
+      <label class="field">💰 Porte-monnaie<input type="number" id="d-wallet" min="0" max="${WALLET_MAX}" value="${d.wallet}"></label>
+      <label class="field">🏦 Banque<input type="number" id="d-bank" min="0" max="${BANK_MAX}" value="${d.bank}"></label></div></div>
+    <div class="row"><button class="btn pink" id="do-create">✨ Créer ma ville</button><button class="btn ghost" id="cancel-create">Annuler</button></div>
+    <div class="hint">Changer de modèle : <button class="btn ghost" id="tpl-reset" style="padding:4px 8px">oublier le modèle</button></div></div>`;
+}
+
+function pickVillagerModal(title: string, onPick: (id: number) => void) {
+  const bySpecies = new Map<string, typeof VILLAGERS>();
+  for (const x of VILLAGERS) { if (!bySpecies.has(x.species)) bySpecies.set(x.species, []); bySpecies.get(x.species)!.push(x); }
+  const m = modal(`<h2>${title}</h2><input id="q" placeholder="Rechercher (nom ou espèce)…" autocomplete="off"><div class="list" id="list"></div>`);
+  const list = m.querySelector('#list')!;
+  const draw = (q: string) => {
+    const nq = q.trim().toLowerCase(); let html = '';
+    for (const [sp, arr] of bySpecies) {
+      const spFr = SPECIES_FR[sp] ?? sp;
+      const hits = arr.filter(x => !nq || x.fr.toLowerCase().includes(nq) || x.name.toLowerCase().includes(nq) || spFr.toLowerCase().includes(nq));
+      if (hits.length) html += `<div class="group">${spFr}</div>` + hits.map(x => `<button class="opt" data-pick="${x.id}">${avatar(x.id)}<span><b>${esc(x.fr)}</b><small>${spFr}</small></span></button>`).join('');
+    }
+    list.innerHTML = html || '<div class="hint">Aucun résultat.</div>';
+  };
+  draw('');
+  m.querySelector<HTMLInputElement>('#q')!.oninput = e => draw((e.target as HTMLInputElement).value);
+  list.addEventListener('click', e => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-pick]'); if (b) { closeModal(); onPick(Number(b.dataset.pick)); } });
+}
+
+function draftLookModal(kind: 'hair' | 'face') {
+  const d = state.draft; const names = kind === 'hair' ? HAIRSTYLES : FACES;
+  const cell = (i: number) => `<button class="look-cell ${(kind === 'hair' ? d.hairstyle : d.face) === i ? 'on' : ''}" data-dlook="${i}">${playerSvg({ ...d, hairstyle: kind === 'hair' ? i : d.hairstyle, face: kind === 'face' ? i : d.face, size: 76 })}<span><b>${i + 1}.</b> ${names[i]}</span></button>`;
+  const m = modal(`<h2>${kind === 'hair' ? '💇 Choisir une coiffure' : '👀 Choisir un visage'}</h2><div class="list"><div class="group">Garçon</div><div class="look-cells">${[0, 1, 2, 3, 4, 5, 6, 7].map(cell).join('')}</div><div class="group">Fille</div><div class="look-cells">${[8, 9, 10, 11, 12, 13, 14, 15].map(cell).join('')}</div></div>`);
+  m.addEventListener('click', e => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-dlook]'); if (!b) return; const v = Number(b.dataset.dlook); if (kind === 'hair') d.hairstyle = v; else d.face = v; closeModal(); render(); });
+}
+
+function bindCreate() {
+  const $ = <T extends HTMLElement>(sel: string) => app.querySelector<T>(sel);
+  const d = state.draft;
+  const cancel = $('#cancel-create'); if (cancel) cancel.onclick = () => { state.creating = false; render(); };
+  const tf = $<HTMLInputElement>('#tplfile');
+  if (tf) tf.onchange = async () => {
+    const f = tf.files?.[0]; if (!f) return;
+    try {
+      const t = new Uint8Array(await f.arrayBuffer()); const sv = await setTemplate(t); state.template = t;
+      d.villagers = randomVillagers(sv.villagers.filter(v => v.exists).length);
+      toast('Modèle enregistré sur ton appareil. 🌱'); render();
+    } catch (e) { toast(e instanceof SaveError ? e.message : 'Impossible de lire ce fichier.'); }
+  };
+  const txt = (id: string, k: 'townName' | 'playerName') => { const el = $<HTMLInputElement>(id); if (el) el.onchange = () => {
+    const bad = [...el.value].filter(c => !isEncodable(c)); if (bad.length) { toast(`Caractères non pris en charge : ${bad.join(' ')}`); el.value = d[k]; return; } d[k] = el.value; }; };
+  txt('#d-town', 'townName'); txt('#d-name', 'playerName');
+  const num = (id: string, k: 'wallet' | 'bank') => { const el = $<HTMLInputElement>(id); if (el) el.onchange = () => { d[k] = Math.max(0, Number(el.value) || 0); }; };
+  num('#d-wallet', 'wallet'); num('#d-bank', 'bank');
+  const h = $('#d-hair'); if (h) h.onclick = () => draftLookModal('hair');
+  const fc = $('#d-face'); if (fc) fc.onclick = () => draftLookModal('face');
+  const col = $('#d-color'), pal = $('#d-palette');
+  if (col && pal) { col.onclick = () => { pal.hidden = !pal.hidden; pal.classList.toggle('open', !pal.hidden); };
+    pal.querySelectorAll<HTMLElement>('[data-dcolor]').forEach(b => b.onclick = () => { d.hairColor = Number(b.dataset.dcolor); render(); }); }
+  app.querySelectorAll<HTMLElement>('[data-draft-v]').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.draftV);
+    pickVillagerModal('🐾 Choisir un villageois', id => { if (d.villagers.includes(id)) { toast('Ce villageois est déjà dans ta liste.'); return; } d.villagers[i] = id; render(); });
+  });
+  const rnd = $('#d-random'); if (rnd) rnd.onclick = () => { d.villagers = randomVillagers(d.villagers.length); render(); };
+  const reset = $('#tpl-reset'); if (reset) reset.onclick = () => askConfirm('Oublier la sauvegarde modèle ?', 'Oublier', async () => { await clearTemplate(); state.template = null; render(); });
+  const go = $('#do-create');
+  if (go) go.onclick = () => {
+    const save = buildFromTemplate(state.template!, d);
+    state.save = save; state.fileName = `${d.townName || 'ville'}.sav`; state.dirty = true; state.creating = false; state.tab = 'villageois';
+    state.player = Math.max(0, save.players.findIndex(p => p.exists));
+    render(); toast(`${save.townName} est née ! Pense à exporter. 🎉`);
+  };
 }
 
 function villagersPanel(s: AcwwSave): string {
@@ -224,7 +326,7 @@ function townPanel(s: AcwwSave): string {
 function render() {
   const s = state.save;
   const tabs: [Tab, string][] = [['villageois', '🐾 Villageois'], ['joueurs', '🧑 Joueur'], ['poches', '🎒 Poches'], ['astuces', '✨ Codes'], ['ville', '🏡 Ville']];
-  let body = loadPanel();
+  let body = state.creating ? createPanel() : loadPanel();
   if (s) {
     body = { ville: townPanel, villageois: villagersPanel, joueurs: playersPanel, poches: pocketsPanel, astuces: cheatsPanel }[state.tab](s);
   }
@@ -236,10 +338,12 @@ function render() {
     </div></div></div>
     <footer>Projet de fan non officiel · Animal Crossing est une marque de Nintendo · format documenté par ACWW Research</footer>`;
   bind();
+  if (state.creating) bindCreate();
 }
 
 function bind() {
   const $ = <T extends HTMLElement>(sel: string) => app.querySelector<T>(sel);
+  const gc = $('#go-create'); if (gc) gc.onclick = () => { state.creating = true; render(); };
   const file = $<HTMLInputElement>('#file');
   if (file) {
     file.onchange = () => file.files?.[0] && openFile(file.files[0]);
@@ -330,7 +434,7 @@ function closeModal() { document.querySelector('.modal-bg')?.remove(); }
 window.addEventListener('beforeunload', e => { if (state.dirty) e.preventDefault(); });
 if ('serviceWorker' in navigator && import.meta.env.PROD && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 
-loadImages().finally(async () => {
+Promise.all([loadImages(), getTemplate().then(t => { if (t) { state.template = t; try { state.draft.villagers = randomVillagers(new AcwwSave(t).villagers.filter(v => v.exists).length); } catch { /* ignore */ } } })]).finally(async () => {
   if (import.meta.env.VITE_PREVIEW) {
     const { demoSave } = await import('./demo');
     state.save = new AcwwSave(demoSave()); state.fileName = 'exemple.sav';

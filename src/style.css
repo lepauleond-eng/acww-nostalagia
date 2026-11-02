@@ -4,6 +4,7 @@
   --wood: #b07a4b; --wood-dark: #7a5233; --cream: #fff8e7; --paper: #fffdf6;
   --ink: #4a3b2c; --ink-soft: #8a7560; --accent: #ff8fab; --accent-2: #ffd166;
   --shell: #f4f1ea; --shell-edge: #d8d2c4; --hinge: #c9c2b2; --screen-bezel: #3d3d48;
+  --sign: #f6e2b8; --sign-edge: #9c6b3f; --sign-ink: #5a3b1d;
   --radius: 18px; --shadow: 0 6px 0 rgba(74, 59, 44, .18);
   font-family: 'Fredoka', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
   color: var(--ink);
@@ -42,9 +43,13 @@ body {
 .top .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 70px;
   background: radial-gradient(ellipse 60% 100% at 25% 100%, var(--grass) 98%, transparent 100%),
               radial-gradient(ellipse 70% 100% at 80% 100%, var(--grass-dark) 98%, transparent 100%); }
-.top .title { position: absolute; top: 14px; left: 0; right: 0; text-align: center; }
-.top h1 { margin: 0; font-size: 30px; color: #fff; letter-spacing: .5px; text-shadow: 0 3px 0 var(--grass-dark), 0 0 12px rgba(0,0,0,.15); }
-.top .sub { font-size: 13px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.top .title { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; text-align: center; white-space: nowrap;
+  background: var(--sign); border: 3px solid var(--sign-edge); border-radius: 16px; padding: 4px 18px 7px; box-shadow: 0 4px 0 var(--sign-edge), 0 8px 14px rgba(0,0,0,.18); }
+.top .title::before, .top .title::after { content: ''; position: absolute; top: 100%; width: 6px; height: 40px; background: var(--sign-edge); z-index: -1; }
+.top .title::before { left: 22px; } .top .title::after { right: 22px; }
+.top .status { z-index: 2; }
+.top h1 { margin: 0; font-size: 28px; line-height: 1.15; color: var(--sign-ink); letter-spacing: .5px; text-shadow: 0 2px 0 rgba(255,255,255,.35); }
+.top .sub { font-size: 12.5px; font-weight: 600; color: var(--sign-ink); opacity: .85; }
 .top .leaf { display: inline-block; animation: sway 3s ease-in-out infinite; transform-origin: 50% 90%; }
 .top .status { position: absolute; bottom: 10px; left: 10px; right: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .pill { background: var(--cream); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
@@ -76,9 +81,9 @@ input, select { font: inherit; font-size: 16px; padding: 9px 12px; border-radius
 input:focus, select:focus { outline: 3px solid var(--accent-2); border-color: transparent; }
 
 /* Drop zone */
-.drop { border: 3px dashed var(--grass); border-radius: 22px; padding: 28px 16px; text-align: center; cursor: pointer; background: var(--paper);
+.drop { display: block; border: 3px dashed var(--grass); border-radius: 22px; padding: 28px 16px; text-align: center; cursor: pointer; background: var(--paper);
   transition: transform .2s, background .2s; }
-.drop:hover, .drop.over { transform: scale(1.02); background: #eefbe6; }
+.drop:hover, .drop.over { transform: scale(1.02); background: var(--cream); }
 .drop .big { font-size: 46px; display: block; animation: bounce 2s ease-in-out infinite; }
 
 /* Villagers */
@@ -175,3 +180,11 @@ html { background: var(--grass); }
 .look-cell:hover { transform: translateY(-2px); border-color: var(--accent-2); } .look-cell.on { border-color: var(--accent); background: #fff0f4; }
 .grid { gap: 8px; } .vcard { min-width: 0; }
 .avatar.art { width: 54px; height: 54px; }
+.create-cta { display: flex; gap: 14px; align-items: center; width: 100%; margin-top: 14px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--paper); border: 3px solid var(--accent); border-radius: 22px; padding: 16px; box-shadow: 0 5px 0 var(--accent); transition: transform .15s; }
+.create-cta:hover { transform: translateY(-2px); } .create-cta:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--accent); }
+.create-cta .big { font-size: 34px; animation: bounce 2.4s ease-in-out infinite; } .create-cta small { display: block; color: var(--ink-soft); margin-top: 2px; }
+.filebtn { display: inline-block; text-align: center; border-radius: 14px; padding: 10px 16px; cursor: pointer; color: #fff; font-weight: 600; background: var(--grass); box-shadow: 0 4px 0 var(--grass-dark); }
+.look-btn { width: 100%; min-width: 0; } .look-btn > span:last-child { min-width: 0; }
+.look-btns .palette { gap: 4px; padding: 8px; } .look-btns .sw span { width: 30px; height: 30px; }
+.look { overflow: hidden; }

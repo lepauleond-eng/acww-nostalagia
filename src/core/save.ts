@@ -41,6 +41,7 @@ export class Player {
   get base() { return PLAYER_START + this.index * PLAYER_SIZE; }
   get exists() { return this.save.u16(this.base + P.exists) !== 0; }
   get name() { return decodeWW(this.save.bytes(this.base + P.name, 8)); }
+  set name(v: string) { this.save.data.set(encodeWW(v, 8), this.base + P.name); }
   get gender(): 'garçon' | 'fille' { return this.save.u8(this.base + P.gender) === 0 ? 'garçon' : 'fille'; }
   get wallet() { return this.save.u32(this.base + P.wallet); }
   set wallet(v: number) { this.save.setU32(this.base + P.wallet, clamp(v, 0, WALLET_MAX)); }
