@@ -32,5 +32,6 @@ export function detectPlatform(): Platform {
 export const PLATFORM_LABEL: Record<Platform, string> = { ios: '📱 iPhone / iPad', android: '🤖 Android', pc: '💻 Ordinateur' };
 
 const KEY = 'feuille-rom-name';
-export function getRomName(): string { try { return localStorage.getItem(KEY) ?? ''; } catch { return ''; } }
+export const DEFAULT_ROM = 'Welcome to Animal Crossing - Wild World Europe EnFrDeEsIt';
+export function getRomName(): string { try { return localStorage.getItem(KEY) || DEFAULT_ROM; } catch { return DEFAULT_ROM; } }
 export function setRomName(v: string) { try { localStorage.setItem(KEY, v); } catch { /* ignore */ } }

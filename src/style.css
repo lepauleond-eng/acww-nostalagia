@@ -205,3 +205,11 @@ a.btn.emu-link { font-size: 13px; padding: 7px 12px; border-radius: 12px; text-d
   border: 2px solid var(--shell-edge); border-radius: 12px; padding: 7px 10px; cursor: pointer; }
 .step span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px; background: var(--shell-edge); color: var(--ink); flex: none; }
 .step.done span { background: var(--grass-light); } .step.on { border-color: var(--grass); } .step.on span { background: var(--grass); color: #fff; }
+.eye-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.eye-chip { font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--paper); border: 2px solid var(--shell-edge); border-radius: 999px; padding: 5px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.eye-chip span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--shell-edge); }
+.eye-chip.on { border-color: var(--accent); background: #fff0f4; color: #5a3b1d; }
+.look-cell[hidden] { display: none !important; }
+.lbl { display: flex; justify-content: space-between; gap: 8px; }
+.cnt { font-style: normal; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.cnt.full { color: #c2410c; font-weight: 700; }

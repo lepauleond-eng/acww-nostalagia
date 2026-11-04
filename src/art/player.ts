@@ -108,3 +108,9 @@ export function playerSvg(o: { hairstyle: number; hairColor: number; face: numbe
     ${front}
   </svg>`;
 }
+
+export const EYE_COLORS = [
+  { id: 'brown', name: 'Marron', hex: EYE.brown }, { id: 'black', name: 'Noirs', hex: EYE.black },
+  { id: 'blue', name: 'Bleus', hex: EYE.blue }, { id: 'green', name: 'Verts', hex: EYE.green },
+] as const;
+export const faceEyeColor = (face: number) => FACE_DEF[face % 16].color;

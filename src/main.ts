@@ -10,7 +10,7 @@ import { itemIconSvg } from './art/items';
 import { getTemplate, setTemplate, clearTemplate, buildFromTemplate, randomVillagers, NewTownOptions } from './template';
 import { EMULATORS, CARTRIDGE_STEPS, detectPlatform, PLATFORM_LABEL, getRomName, setRomName, Platform } from './play';
 import { FRUITS, fruitCounts, nativeFruit, replaceFruit, SHOPS, shopLevel, setShopLevel, HOUSES, houseLevel, setHouseLevel, debt, setDebt } from './core/town';
-import { playerSvg, HAIRSTYLES, FACES, HAIR_COLORS, skinFor, tanLabel, TAN_LEVELS } from './art/player';
+import { EYE_COLORS, faceEyeColor, playerSvg, HAIRSTYLES, FACES, HAIR_COLORS, skinFor, tanLabel, TAN_LEVELS } from './art/player';
 
 type Tab = 'ville' | 'villageois' | 'joueurs' | 'poches' | 'astuces' | 'jouer';
 const state: { save: AcwwSave | null; fileName: string; tab: Tab; player: number; dirty: boolean; creating: boolean; template: Uint8Array | null; draft: NewTownOptions } =
@@ -87,8 +87,9 @@ function createPanel(): string {
   }).join('');
   return `<div class="panel"><h2>✨ Créer une sauvegarde</h2>
     <div class="card"><div class="row">
-      <label class="field">🏡 Nom de la ville<input id="d-town" maxlength="8" value="${esc(d.townName)}"></label>
-      <label class="field">🧑 Ton prénom<input id="d-name" maxlength="8" value="${esc(d.playerName)}"></label></div></div>
+      <label class="field"><span class="lbl">🏡 Nom de la ville <em class="cnt" data-for="d-town">${[...d.townName].length}/8</em></span><input id="d-town" maxlength="8" value="${esc(d.townName)}"></label>
+      <label class="field"><span class="lbl">🧑 Ton prénom <em class="cnt" data-for="d-name">${[...d.playerName].length}/8</em></span><input id="d-name" maxlength="8" value="${esc(d.playerName)}"></label></div>
+      <div class="hint">8 lettres maximum, espaces compris : c'est la limite du jeu.</div></div>
     <div class="card look"><h2>💇 Ton perso</h2><div class="look-grid">
       <div class="mirror">${playerSvg({ hairstyle: d.hairstyle, hairColor: d.hairColor, face: d.face, tan: d.tan, size: 132, cls: 'bob' })}</div>
       <div class="look-btns">
@@ -127,8 +128,8 @@ function pickVillagerModal(title: string, onPick: (id: number) => void) {
 
 function draftLookModal(kind: 'hair' | 'face') {
   const d = state.draft; const names = kind === 'hair' ? HAIRSTYLES : FACES;
-  const cell = (i: number) => `<button class="look-cell ${(kind === 'hair' ? d.hairstyle : d.face) === i ? 'on' : ''}" data-dlook="${i}">${playerSvg({ ...d, hairstyle: kind === 'hair' ? i : d.hairstyle, face: kind === 'face' ? i : d.face, size: 76 })}<span><b>${i + 1}.</b> ${names[i]}</span></button>`;
-  const m = modal(`<h2>${kind === 'hair' ? '💇 Choisir une coiffure' : '👀 Choisir un visage'}</h2><div class="list"><div class="group">Garçon</div><div class="look-cells">${[0, 1, 2, 3, 4, 5, 6, 7].map(cell).join('')}</div><div class="group">Fille</div><div class="look-cells">${[8, 9, 10, 11, 12, 13, 14, 15].map(cell).join('')}</div></div>`);
+  const cell = (i: number) => `<button class="look-cell ${(kind === 'hair' ? d.hairstyle : d.face) === i ? 'on' : ''}" data-dlook="${i}" data-eye="${faceEyeColor(i)}">${playerSvg({ ...d, hairstyle: kind === 'hair' ? i : d.hairstyle, face: kind === 'face' ? i : d.face, size: 76 })}<span><b>${i + 1}.</b> ${names[i]}</span></button>`;
+  const m = modal(`<h2>${kind === 'hair' ? '💇 Choisir une coiffure' : '👀 Choisir un visage'}</h2>${kind === 'face' ? eyeChips() : ''}<div class="list"><div class="group">Garçon</div><div class="look-cells">${[0, 1, 2, 3, 4, 5, 6, 7].map(cell).join('')}</div><div class="group">Fille</div><div class="look-cells">${[8, 9, 10, 11, 12, 13, 14, 15].map(cell).join('')}</div></div>`);
   m.addEventListener('click', e => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-dlook]'); if (!b) return; const v = Number(b.dataset.dlook); if (kind === 'hair') d.hairstyle = v; else d.face = v; closeModal(); render(); });
 }
 
@@ -164,7 +165,7 @@ function bindCreate() {
   const go = $('#do-create');
   if (go) go.onclick = () => {
     const save = buildFromTemplate(state.template!, d);
-    state.save = save; state.fileName = `${d.townName || 'ville'}.sav`; state.dirty = true; state.creating = false; state.tab = 'villageois';
+    state.save = save; state.fileName = `${getRomName()}.sav`; state.dirty = true; state.creating = false; state.tab = 'villageois';
     state.player = Math.max(0, save.players.findIndex(p => p.exists));
     render(); toast(`${save.townName} est née ! Pense à exporter. 🎉`);
   };
@@ -257,14 +258,30 @@ function playersPanel(s: AcwwSave): string {
   </div>`;
 }
 
+function eyeChips(): string {
+  return `<div class="hint" style="margin:0">Dans Wild World, la couleur des yeux fait partie du visage : choisis une couleur pour voir les visages qui l'ont.</div>
+    <div class="eye-chips"><button class="eye-chip on" data-eyef="">Toutes</button>${EYE_COLORS.map(c => `<button class="eye-chip" data-eyef="${c.id}"><span style="background:${c.hex}"></span>${c.name}</button>`).join('')}</div>`;
+}
+document.addEventListener('input', e => {
+  const el = e.target as HTMLInputElement; if (!el.id) return;
+  const c = document.querySelector<HTMLElement>(`.cnt[data-for="${el.id}"]`); if (!c) return;
+  const n = [...el.value].length; c.textContent = `${n}/8`; c.classList.toggle('full', n >= 8);
+});
+document.addEventListener('click', e => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-eyef]'); if (!b) return;
+  const m = b.closest('.modal')!; const f = b.dataset.eyef!;
+  m.querySelectorAll('.eye-chip').forEach(x => x.classList.toggle('on', x === b));
+  m.querySelectorAll<HTMLElement>('[data-eye]').forEach(c => { c.hidden = !!f && c.dataset.eye !== f; });
+});
+
 function lookModal(kind: 'hair' | 'face') {
   const p = state.save!.players[state.player];
   const list = kind === 'hair' ? HAIRSTYLES : FACES;
   const cur = kind === 'hair' ? p.hairstyle : p.face;
-  const cell = (i: number) => `<button class="look-cell ${cur === i ? 'on' : ''}" data-look-pick="${i}">
+  const cell = (i: number) => `<button class="look-cell ${cur === i ? 'on' : ''}" data-look-pick="${i}" data-eye="${faceEyeColor(i)}">
       ${playerSvg({ hairstyle: kind === 'hair' ? i : p.hairstyle, hairColor: p.hairColor, face: kind === 'face' ? i : p.face, tan: p.tan, size: 76 })}
       <span><b>${i + 1}.</b> ${list[i]}</span></button>`;
-  const m = modal(`<h2>${kind === 'hair' ? '💇 Choisir une coiffure' : '👀 Choisir un visage'}</h2>
+  const m = modal(`<h2>${kind === 'hair' ? '💇 Choisir une coiffure' : '👀 Choisir un visage'}</h2>${kind === 'face' ? eyeChips() : ''}
     <div class="list"><div class="group">Garçon</div><div class="look-cells">${[0, 1, 2, 3, 4, 5, 6, 7].map(cell).join('')}</div>
     <div class="group">Fille</div><div class="look-cells">${[8, 9, 10, 11, 12, 13, 14, 15].map(cell).join('')}</div></div>`);
   m.addEventListener('click', e => {
@@ -335,7 +352,7 @@ function townExtras(s: AcwwSave): string {
 
 function townPanel(s: AcwwSave): string {
   return `<div class="panel"><h2>🏡 Ma ville</h2>
-    <div class="card"><label class="field">Nom de la ville (8 caractères max)<input id="town" maxlength="8" value="${esc(s.townName)}"></label>
+    <div class="card"><label class="field"><span class="lbl">Nom de la ville <em class="cnt" data-for="town">${[...s.townName].length}/8</em></span><input id="town" maxlength="8" value="${esc(s.townName)}"></label>
       <div class="hint">⚠️ Le nom est aussi copié dans les lettres et chez les villageois. Le changer ici modifie l'affichage principal ; à tester sur une copie.</div></div>
     ${townExtras(s)}
     <div class="card"><h2>📦 Fichier</h2><div class="hint">${esc(state.fileName)} · région ${s.region === 'EUR' ? 'Europe (FR)' : 'USA'} · ${(s.data.length / 1024) | 0} Ko</div>
@@ -425,6 +442,8 @@ async function openFile(f: File) {
   try {
     const save = new AcwwSave(new Uint8Array(await f.arrayBuffer()));
     state.save = save; state.fileName = f.name; state.dirty = false;
+    const base = f.name.replace(/\.(sav|dsv|bin)$/i, '');
+    if (!/-modifie$/.test(base) && !/^\d+$/.test(base)) setRomName(base);
     state.player = Math.max(0, save.players.findIndex(p => p.exists));
     state.tab = 'villageois';
     render();
@@ -455,7 +474,7 @@ async function doExport(nameOverride?: string) {
   const s = state.save!;
   if (import.meta.env.VITE_PREVIEW) { toast("Aperçu : l'export marche dans l'app installée."); return; }
   try {
-    const name = nameOverride ?? state.fileName.replace(/(\.[^.]+)?$/, m => `-modifie${m || '.sav'}`);
+    const name = nameOverride ?? `${getRomName()}.sav`;
     const msg = await saveFile(s.export(), name);
     state.dirty = false; toast(`${msg} 💾`); render();
   } catch (e) { toast('Export impossible : ' + (e as Error).message); }
