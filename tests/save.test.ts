@@ -92,3 +92,9 @@ describe('create from template', () => {
     expect(out.villagers.map(v => v.species)).toEqual([100, 101, 102, 103, 104, 105, 0xff, 0xff]);
   });
 });
+
+describe('blank saves', () => {
+  it('explains that an erased save has nothing in it yet', () => {
+    expect(() => new AcwwSave(new Uint8Array(0x40000).fill(0xff))).toThrow(/vide/);
+  });
+});

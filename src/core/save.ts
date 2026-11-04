@@ -89,6 +89,9 @@ export class AcwwSave {
     if (!VALID_SIZES.includes(input.length)) {
       throw new SaveError(`Taille de fichier inattendue (${input.length} octets). Un .sav de Wild World fait 256 Ko ou 512 Ko.`);
     }
+    if (input.subarray(0, MAIN_SIZE).every(b => b === 0xff)) {
+      throw new SaveError("Cette sauvegarde est vide : le jeu n'a encore rien enregistré. Joue jusqu'à ta première vraie sauvegarde (menu Start → Sauvegarder), puis réessaie.");
+    }
     const code = input[0];
     if ((code !== REGION_EUR && code !== REGION_USA) || input[COPY2_OFFSET] !== code) {
       throw new SaveError("Ce fichier ne ressemble pas à une sauvegarde Animal Crossing: Wild World européenne (FR) ou américaine.");
