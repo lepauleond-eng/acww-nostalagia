@@ -8,9 +8,10 @@ import { loadImages, imageFor, importImages, clearImages } from './images';
 import { villagerSvg } from './art/villager';
 import { itemIconSvg } from './art/items';
 import { getTemplate, setTemplate, clearTemplate, buildFromTemplate, randomVillagers, NewTownOptions } from './template';
+import { EMULATORS, CARTRIDGE_STEPS, detectPlatform, PLATFORM_LABEL, getRomName, setRomName, Platform } from './play';
 import { playerSvg, HAIRSTYLES, FACES, HAIR_COLORS, skinFor, tanLabel, TAN_LEVELS } from './art/player';
 
-type Tab = 'ville' | 'villageois' | 'joueurs' | 'poches' | 'astuces';
+type Tab = 'ville' | 'villageois' | 'joueurs' | 'poches' | 'astuces' | 'jouer';
 const state: { save: AcwwSave | null; fileName: string; tab: Tab; player: number; dirty: boolean; creating: boolean; template: Uint8Array | null; draft: NewTownOptions } =
   { save: null, fileName: 'ACWW.sav', tab: 'villageois', player: 0, dirty: false, creating: false, template: null,
     draft: { townName: 'Feuilly', playerName: 'Lou', villagers: randomVillagers(), wallet: 1000, bank: 0, hairstyle: 0, hairColor: 0, face: 0, tan: 0, emptyPockets: true } };
@@ -325,10 +326,10 @@ function townPanel(s: AcwwSave): string {
 /* ---------------- Rendering ---------------- */
 function render() {
   const s = state.save;
-  const tabs: [Tab, string][] = [['villageois', '🐾 Villageois'], ['joueurs', '🧑 Joueur'], ['poches', '🎒 Poches'], ['astuces', '✨ Codes'], ['ville', '🏡 Ville']];
+  const tabs: [Tab, string][] = [['villageois', '🐾 Villageois'], ['joueurs', '🧑 Joueur'], ['poches', '🎒 Poches'], ['astuces', '✨ Codes'], ['ville', '🏡 Ville'], ['jouer', '🎮 Jouer']];
   let body = state.creating ? createPanel() : loadPanel();
   if (s) {
-    body = { ville: townPanel, villageois: villagersPanel, joueurs: playersPanel, poches: pocketsPanel, astuces: cheatsPanel }[state.tab](s);
+    body = { ville: townPanel, villageois: villagersPanel, joueurs: playersPanel, poches: pocketsPanel, astuces: cheatsPanel, jouer: playPanel }[state.tab](s);
   }
   app.innerHTML = `<div class="ds">${topScreen()}<div class="hinge"></div>
     <div class="screen"><div class="screen-inner bottom">
@@ -377,7 +378,10 @@ function bind() {
     if (bad.length) { toast(`Caractères non pris en charge : ${bad.join(' ')}`); return; }
     s.townName = town.value; changed('Nom de la ville modifié.');
   };
-  for (const id of ['#export', '#export2']) { const b = $(id); if (b) b.onclick = doExport; }
+  for (const id of ['#export', '#export2']) { const b = $(id); if (b) b.onclick = () => doExport(); }
+  const romIn = $<HTMLInputElement>('#rom-name');
+  if (romIn) romIn.onchange = () => { setRomName(romIn.value.trim().replace(/\.(nds|sav|dsv)$/i, '')); render(); };
+  const ep = $('#export-play'); if (ep) ep.onclick = () => doExport(`${getRomName() || 'ma-ville'}.sav`);
   const close = $('#close'); if (close) close.onclick = () => {
     const reset = () => { state.save = null; state.dirty = false; render(); };
     if (!state.dirty) reset(); else askConfirm('Fermer sans exporter les modifications ?', 'Fermer', reset);
@@ -404,11 +408,28 @@ async function openFile(f: File) {
   }
 }
 
-async function doExport() {
+function playPanel(_s: AcwwSave): string {
+  const mine = detectPlatform();
+  const order: Platform[] = [mine, ...(['ios', 'android', 'pc'] as Platform[]).filter(p => p !== mine)];
+  const rom = getRomName();
+  const card = (e: typeof EMULATORS[number]) => `<div class="card emu"><div class="emu-head"><span class="emu-name">${e.name}</span>
+      <a class="btn green emu-link" href="${e.url}" target="_blank" rel="noopener">Télécharger · ${e.store}</a></div>
+      <ol>${e.steps.map(x => `<li>${x}</li>`).join('')}</ol></div>`;
+  return `<div class="panel"><h2>🎮 Jouer avec cette sauvegarde</h2>
+    <div class="card"><label class="field">Nom de ton fichier de jeu (sans .nds)<input id="rom-name" placeholder="ex. Animal Crossing - Wild World (France)" value="${esc(rom)}"></label>
+      <div class="hint">Les émulateurs retrouvent la sauvegarde grâce à ce nom : le .sav doit porter exactement le même nom que le jeu.</div>
+      <button class="btn pink" id="export-play" style="width:100%">💾 Exporter ${esc((rom || 'ma-ville') + '.sav')}</button></div>
+    ${order.map(pl => `<div class="group plat ${pl === mine ? 'mine' : ''}">${PLATFORM_LABEL[pl]}${pl === mine ? ' · ton appareil' : ''}</div>${EMULATORS.filter(e => e.platform === pl).map(card).join('')}`).join('')}
+    <div class="group plat">🎴 Vraie DS avec une carte type R4</div>
+    <div class="card emu"><ol>${CARTRIDGE_STEPS.map(x => `<li>${x}</li>`).join('')}</ol></div>
+    <div class="hint">Feuille ne fournit pas le jeu : utilise une copie de ta propre cartouche.</div></div>`;
+}
+
+async function doExport(nameOverride?: string) {
   const s = state.save!;
   if (import.meta.env.VITE_PREVIEW) { toast("Aperçu : l'export marche dans l'app installée."); return; }
   try {
-    const name = state.fileName.replace(/(\.[^.]+)?$/, m => `-modifie${m || '.sav'}`);
+    const name = nameOverride ?? state.fileName.replace(/(\.[^.]+)?$/, m => `-modifie${m || '.sav'}`);
     const msg = await saveFile(s.export(), name);
     state.dirty = false; toast(`${msg} 💾`); render();
   } catch (e) { toast('Export impossible : ' + (e as Error).message); }
