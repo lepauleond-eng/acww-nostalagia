@@ -132,3 +132,33 @@ describe('real FR save (Mars)', () => {
     expect(Buffer.compare(Buffer.from(new AcwwSave(r).export()), Buffer.from(r))).toBe(0);
   });
 });
+
+describe('villager text and renames (real saves)', () => {
+  const load = (f: string) => new AcwwSave(new Uint8Array(fs.readFileSync(new URL(f, import.meta.url))));
+  it('reads and writes catchphrases', () => {
+    const s = load('./mars.sav');
+    expect(s.villagers.slice(0, 3).map(v => v.catchphrase)).toEqual(['grih grih', 'lapinou', 'h-h-h-hon']);
+    s.villagers[1].catchphrase = 'carotte';
+    const r = new AcwwSave(s.export());
+    expect(r.villagers[1].catchphrase).toBe('carotte');
+    expect(r.checksumValid).toBe(true);
+  });
+  it('reads and edits the nickname a villager gives a player', () => {
+    const s = load('./marseill.sav');
+    const m = s.villagers[2].memories;
+    expect(m).toEqual([{ slot: 0, playerId: s.players[0].id, playerName: 'Loulou', nickname: 'Loulou' }]);
+    s.villagers[2].setNickname(0, 'Lou');
+    expect(s.villagers[2].memories[0].nickname).toBe('Lou');
+  });
+  it('renames the town and player in every copy', () => {
+    const s = load('./marseill.sav');
+    s.townName = 'Mars'; // header said Marseill, game copies too
+    const pat = (id: number, n: string) => { const out: number[] = []; const b = s.data;
+      for (let o = 0; o < 0x15fe0 - 10; o++) if (b[o] === (id & 0xff) && b[o + 1] === id >> 8 && decodeWW(b.subarray(o + 2, o + 10)) === n) out.push(o); return out; };
+    expect(pat(s.townId, 'Marseill')).toEqual([]);
+    s.players[0].name = 'Lou';
+    expect(pat(s.players[0].id, 'Loulou')).toEqual([]);
+    expect(pat(s.players[0].id, 'Lou').length).toBeGreaterThan(5);
+    expect(s.villagers[2].memories[0].playerName).toBe('Lou');
+  });
+});

@@ -19,7 +19,13 @@ export const EMPTY_ITEM = 0xfff1;
 export const NO_VILLAGER = 0xff;
 
 const P = { pockets: 0x1b22, wallet: 0x1b40, bank: 0x21e4, face: 0x223c, tan: 0x223d, exists: 0x2280, name: 0x2282, gender: 0x228a };
-const V = { furniture: 0x6ac, personality: 0x6ca, species: 0x6cb, shirt: 0x6ec, wallpaper: 0x6ee, carpet: 0x6ef, umbrella: 0x6f4 };
+const V = { catchphrase: 0x6de, furniture: 0x6ac, personality: 0x6ca, species: 0x6cb, shirt: 0x6ec, wallpaper: 0x6ee, carpet: 0x6ef, umbrella: 0x6f4 };
+
+// Villager memory of a player (8 slots at the start of the villager): town id+name, player id+name, nickname.
+const MEMORY_SIZE = 0x68, MEMORY_COUNT = 8;
+const M = { playerId: 0x0a, playerName: 0x0c, nickname: 0x16 };
+export const CATCHPHRASE_LEN = 10;
+export interface Memory { slot: number; playerId: number; playerName: string; nickname: string }
 
 export const WALLET_MAX = 99999;
 export const BANK_MAX = 999999999;
@@ -41,7 +47,9 @@ export class Player {
   get base() { return PLAYER_START + this.index * PLAYER_SIZE; }
   get exists() { return this.save.u16(this.base + P.exists) !== 0; }
   get name() { return decodeWW(this.save.bytes(this.base + P.name, 8)); }
-  set name(v: string) { this.save.data.set(encodeWW(v, 8), this.base + P.name); }
+  /** Player id: the game tags every copy of the name (letters, villager memories) with it. */
+  get id() { return this.save.u16(this.base + P.exists); }
+  set name(v: string) { this.save.retag(this.id, this.base + P.name, encodeWW(v, 8)); }
   get gender(): 'garçon' | 'fille' { return this.save.u8(this.base + P.gender) === 0 ? 'garçon' : 'fille'; }
   get wallet() { return this.save.u32(this.base + P.wallet); }
   set wallet(v: number) { this.save.setU32(this.base + P.wallet, clamp(v, 0, WALLET_MAX)); }
@@ -76,6 +84,21 @@ export class Villager {
   set shirt(v: number) { this.save.setU16(this.base + V.shirt, v); }
   get umbrella() { return this.save.u8(this.base + V.umbrella); }
   set umbrella(v: number) { this.save.setU8(this.base + V.umbrella, v); }
+  /** Word the villager ends sentences with ("lapinou"), 10 characters. */
+  get catchphrase() { return decodeWW(this.save.bytes(this.base + V.catchphrase, CATCHPHRASE_LEN)).trim(); }
+  set catchphrase(v: string) { this.save.data.set(encodeWW(v, CATCHPHRASE_LEN), this.base + V.catchphrase); }
+  /** What this villager remembers about each player met: the nickname it uses for them. */
+  get memories(): Memory[] {
+    const out: Memory[] = [];
+    for (let i = 0; i < MEMORY_COUNT; i++) {
+      const o = this.base + i * MEMORY_SIZE;
+      const playerId = this.save.u16(o + M.playerId);
+      if (!playerId) continue;
+      out.push({ slot: i, playerId, playerName: decodeWW(this.save.bytes(o + M.playerName, 8)), nickname: decodeWW(this.save.bytes(o + M.nickname, 8)) });
+    }
+    return out;
+  }
+  setNickname(slot: number, v: string) { this.save.data.set(encodeWW(v, 8), this.base + slot * MEMORY_SIZE + M.nickname); }
   furniture(i: number) { return this.save.u16(this.base + V.furniture + i * 2); }
   setFurniture(i: number, v: number) { this.save.setU16(this.base + V.furniture + i * 2, v); }
 }
@@ -110,7 +133,20 @@ export class AcwwSave {
   bytes(o: number, n: number) { return this.data.subarray(o, o + n); }
 
   get townName() { return decodeWW(this.bytes(0x04, 8)); }
-  set townName(v: string) { this.data.set(encodeWW(v, 8), 0x04); }
+  /** Renames the town everywhere the game keeps a copy (players, letters, villagers), not just the header. */
+  set townName(v: string) { this.retag(this.townId, 0x04, encodeWW(v, 8)); }
+
+  /** Writes `name` at `at` and in every other place of the main copy where the same id + old name pair appears. */
+  retag(id: number, at: number, name: Uint8Array) {
+    const old = this.bytes(at, 8).slice();
+    const lo = id & 0xff, hi = id >> 8;
+    if (id) for (let o = 0; o + 10 <= MAIN_SIZE; o++) {
+      if (o + 2 === at || this.data[o] !== lo || this.data[o + 1] !== hi) continue;
+      let same = true; for (let k = 0; k < 8 && same; k++) same = this.data[o + 2 + k] === old[k];
+      if (same) { this.data.set(name, o + 2); o += 9; }
+    }
+    this.data.set(name, at);
+  }
   get townId() { return this.u16(0x02); }
 
   get players() { return [0, 1, 2, 3].map(i => new Player(this, i)); }

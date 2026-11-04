@@ -1,5 +1,5 @@
 import './style.css';
-import { AcwwSave, SaveError, EMPTY_ITEM, NO_VILLAGER, WALLET_MAX, BANK_MAX, Villager } from './core/save';
+import { AcwwSave, SaveError, EMPTY_ITEM, NO_VILLAGER, WALLET_MAX, BANK_MAX, Villager, CATCHPHRASE_LEN } from './core/save';
 import { CHEATS } from './core/cheats';
 import { VILLAGERS, VILLAGER_BY_ID, SPECIES_FR, SPECIES_STYLE, PERSONALITIES_FR, ITEMS, ITEM_BY_ID, POCKET_CATEGORIES, CATEGORY_FR, itemName } from './core/data';
 import { isEncodable } from './core/charset';
@@ -175,10 +175,10 @@ function villagersPanel(s: AcwwSave): string {
   const cards = s.villagers.map((v, i) => {
     const info = VILLAGER_BY_ID.get(v.species);
     return v.exists && info
-      ? `<button class="vcard" data-vslot="${i}" style="animation-delay:${i * 40}ms">${avatar(v.species)}<div class="nm">${esc(info.fr)}</div><div class="sp">${SPECIES_FR[info.species] ?? info.species}</div></button>`
+      ? `<button class="vcard" data-vslot="${i}" style="animation-delay:${i * 40}ms">${avatar(v.species)}<div class="nm">${esc(info.fr)}</div><div class="sp">${SPECIES_FR[info.species] ?? info.species}</div>${v.catchphrase ? `<div class="sp">« ${esc(v.catchphrase)} »</div>` : ''}</button>`
       : `<button class="vcard empty" data-vslot="${i}" style="animation-delay:${i * 40}ms"><span class="avatar">🏚️</span><div class="nm">Libre</div><div class="sp">emplacement ${i + 1}</div></button>`;
   }).join('');
-  return `<div class="panel"><h2>🐾 Tes villageois</h2><div class="hint">Touche un villageois pour le remplacer ou changer son caractère.</div>
+  return `<div class="panel"><h2>🐾 Tes villageois</h2><div class="hint">Touche un villageois pour le remplacer, changer son caractère, son expression ou le surnom qu'il te donne.</div>
     <div class="grid">${cards}</div>
     <div class="card" style="margin-top:14px"><h2>🖼️ Tes images</h2>
       <div class="hint">Importe tes propres images, nommées comme le villageois (ex. <i>Robert.png</i> ou <i>Bob.png</i>). Elles restent sur ton appareil.</div>
@@ -193,7 +193,9 @@ function villagerModal(slot: number) {
   const persoOpts = PERSONALITIES_FR.map((p, i) => `<option value="${i}" ${v.personality === i ? 'selected' : ''}>${p}</option>`).join('');
   const m = modal(`<h2>${v.exists ? '🔁 Remplacer' : '➕ Installer'} un villageois</h2>
     ${!v.exists ? '<div class="hint">⚠️ Expérimental : installer un villageois sur un emplacement libre peut ne pas fonctionner (pas de maison). Remplacer un villageois existant est plus sûr.</div>' : ''}
-    ${v.exists ? `<label class="field">Caractère<select id="perso">${persoOpts}</select></label>` : ''}
+    ${v.exists ? `<label class="field">Caractère<select id="perso">${persoOpts}</select></label>
+    <label class="field"><span class="lbl">💬 Expression <em class="cnt" data-for="catch">${[...v.catchphrase].length}/${CATCHPHRASE_LEN}</em></span><input id="catch" maxlength="${CATCHPHRASE_LEN}" value="${esc(v.catchphrase)}" placeholder="ex. lapinou"></label>
+    ${v.memories.map(m => `<label class="field"><span class="lbl">🏷️ Surnom donné à ${esc(m.playerName)} <em class="cnt" data-for="nick${m.slot}">${[...m.nickname].length}/8</em></span><input id="nick${m.slot}" data-nick="${m.slot}" maxlength="8" value="${esc(m.nickname)}"></label>`).join('')}` : ''}
     <input id="q" placeholder="Rechercher (nom ou espèce)…" autocomplete="off">
     <div class="list" id="list"></div>
     ${v.exists ? '<button class="btn ghost" id="evict">Faire partir ce villageois</button>' : ''}`);
@@ -216,8 +218,18 @@ function villagerModal(slot: number) {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-pick]'); if (!b) return;
     const id = Number(b.dataset.pick);
     if (s.villagers.some((o, i) => i !== slot && o.species === id)) { toast('Ce villageois habite déjà en ville.'); return; }
-    v.species = id; closeModal(); changed(`Bienvenue à ${VILLAGER_BY_ID.get(id)?.fr} ! 🎉`);
+    v.species = id; closeModal();
+    changed(`Bienvenue à ${VILLAGER_BY_ID.get(id)?.fr} ! 🎉${v.personality >= PERSONALITIES_FR.length ? ' Touche-le pour choisir son caractère.' : ''}`);
   });
+  const okText = (t: string) => { const bad = [...t].filter(c => !isEncodable(c)); if (bad.length) toast(`Caractères non pris en charge : ${bad.join(' ')}`); return !bad.length; };
+  m.querySelector<HTMLInputElement>('#catch')?.addEventListener('change', e => {
+    const t = (e.target as HTMLInputElement).value; if (!okText(t)) return;
+    v.catchphrase = t; changed(`Nouvelle expression : « ${v.catchphrase} »`);
+  });
+  m.querySelectorAll<HTMLInputElement>('[data-nick]').forEach(inp => inp.addEventListener('change', () => {
+    const t = inp.value.trim(); if (!t || !okText(t)) return;
+    v.setNickname(Number(inp.dataset.nick), t); changed(`Surnom modifié : ${t}`);
+  }));
   m.querySelector<HTMLSelectElement>('#perso')?.addEventListener('change', e => { v.personality = Number((e.target as HTMLSelectElement).value); changed('Caractère modifié.'); });
   m.querySelector('#evict')?.addEventListener('click', () => {
     askConfirm('Faire partir ce villageois ? Sa maison peut rester en ville tant que le jeu ne l\'a pas retirée.', 'Faire partir', () => {
