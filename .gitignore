@@ -4,3 +4,4 @@ android/
 *.sav
 !tests/**/*.sav
 dist-preview/
+!public/templates/*.sav

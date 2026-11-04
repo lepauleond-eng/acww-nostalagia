@@ -9,6 +9,7 @@ import { villagerSvg } from './art/villager';
 import { itemIconSvg } from './art/items';
 import { getTemplate, setTemplate, clearTemplate, buildFromTemplate, randomVillagers, NewTownOptions } from './template';
 import { EMULATORS, CARTRIDGE_STEPS, detectPlatform, PLATFORM_LABEL, getRomName, setRomName, Platform } from './play';
+import { FRUITS, fruitCounts, nativeFruit, replaceFruit, SHOPS, shopLevel, setShopLevel, HOUSES, houseLevel, setHouseLevel, debt, setDebt } from './core/town';
 import { playerSvg, HAIRSTYLES, FACES, HAIR_COLORS, skinFor, tanLabel, TAN_LEVELS } from './art/player';
 
 type Tab = 'ville' | 'villageois' | 'joueurs' | 'poches' | 'astuces' | 'jouer';
@@ -315,10 +316,28 @@ function cheatsPanel(s: AcwwSave): string {
     ${CHEATS.map(c => `<div class="card cheat"><div><div class="t">${c.title}</div><div class="d">${c.description}</div></div><button class="btn pink" data-cheat="${c.id}">Activer</button></div>`).join('')}</div>`;
 }
 
+function townExtras(s: AcwwSave): string {
+  const counts = fruitCounts(s); const nat = nativeFruit(s);
+  const sh = shopLevel(s), ho = houseLevel(s);
+  const fruitBtns = FRUITS.map((f, i) => `<button class="fruit ${i === nat ? 'on' : ''}" data-fruit="${i}"><span class="fruit-ico">${['🍑', '🍎', '🍊', '🍐', '🍒'][i]}</span>${f.name}<small>${counts[i]} arbre${counts[i] > 1 ? 's' : ''}</small></button>`).join('');
+  const steps = (list: { name: string }[], cur: number, attr: string) => `<div class="steps">${list.map((x, i) => `<button class="step ${i === cur ? 'on' : ''} ${i < cur ? 'done' : ''}" data-${attr}="${i}"><span>${i + 1}</span>${x.name}</button>`).join('')}</div>`;
+  return `<div class="card"><h2>🌳 Fruit de la ville</h2>
+      <div class="hint" style="margin-top:0">Fruit actuel : <b>${nat >= 0 ? FRUITS[nat].name : 'aucun arbre fruitier'}</b>. Choisir un fruit transforme tous les arbres fruitiers de la ville (même taille, mêmes fruits ou non).</div>
+      <div class="fruits">${fruitBtns}</div>
+      <div class="hint">Le prix de revente « fruit local » peut rester celui de l'ancien fruit : je n'ai pas encore trouvé où le jeu le mémorise.</div></div>
+    <div class="card"><h2>🏪 Boutique de Tom Nook</h2>${sh >= 0 ? steps(SHOPS, sh, 'shop') : '<div class="hint">Boutique introuvable sur la carte.</div>'}
+      <div class="hint">⚠️ Expérimental : change le bâtiment sur la carte. Le jeu peut garder son compteur d'achats ; à tester sur une copie.</div></div>
+    <div class="card"><h2>🏠 Ta maison</h2>${ho >= 0 ? steps(HOUSES, ho, 'house') : '<div class="hint">Maison introuvable sur la carte.</div>'}
+      <label class="field" style="margin-top:10px">💸 Prêt à rembourser à Tom Nook<input type="number" id="debt" min="0" value="${debt(s)}"></label>
+      <div class="hint">⚠️ Expérimental : agrandir la maison sans rembourser peut perturber Tom Nook. Mets le prêt à 0 pour être tranquille.</div></div>
+    <div class="card"><h2>🦉 Musée</h2><div class="hint" style="margin-top:0">Dans Wild World, le musée ne s'agrandit pas : il a déjà toutes ses salles dès le début (l'observatoire de Céleste arrive avec les dons). Remplir le musée d'un coup demande de trouver où le jeu note les dons ; ce n'est pas encore documenté.</div></div>`;
+}
+
 function townPanel(s: AcwwSave): string {
   return `<div class="panel"><h2>🏡 Ma ville</h2>
     <div class="card"><label class="field">Nom de la ville (8 caractères max)<input id="town" maxlength="8" value="${esc(s.townName)}"></label>
       <div class="hint">⚠️ Le nom est aussi copié dans les lettres et chez les villageois. Le changer ici modifie l'affichage principal ; à tester sur une copie.</div></div>
+    ${townExtras(s)}
     <div class="card"><h2>📦 Fichier</h2><div class="hint">${esc(state.fileName)} · région ${s.region === 'EUR' ? 'Europe (FR)' : 'USA'} · ${(s.data.length / 1024) | 0} Ko</div>
       <div class="row"><button class="btn green" id="export">💾 Exporter le .sav</button><button class="btn ghost" id="close">Ouvrir un autre fichier</button></div></div></div>`;
 }
@@ -379,6 +398,13 @@ function bind() {
     s.townName = town.value; changed('Nom de la ville modifié.');
   };
   for (const id of ['#export', '#export2']) { const b = $(id); if (b) b.onclick = () => doExport(); }
+  app.querySelectorAll<HTMLElement>('[data-fruit]').forEach(b => b.onclick = () => {
+    const to = Number(b.dataset.fruit); const n = replaceFruit(s, -1, to);
+    changed(n ? `${n} arbres donnent maintenant : ${FRUITS[to].name} 🌳` : 'Aucun arbre à changer.');
+  });
+  app.querySelectorAll<HTMLElement>('[data-shop]').forEach(b => b.onclick = () => { if (setShopLevel(s, Number(b.dataset.shop))) changed(`Boutique : ${SHOPS[Number(b.dataset.shop)].name} 🏪`); });
+  app.querySelectorAll<HTMLElement>('[data-house]').forEach(b => b.onclick = () => { if (setHouseLevel(s, Number(b.dataset.house))) changed(`Maison : ${HOUSES[Number(b.dataset.house)].name} 🏠`); });
+  const dbt = $<HTMLInputElement>('#debt'); if (dbt) dbt.onchange = () => { setDebt(s, Number(dbt.value)); changed('Prêt mis à jour.'); };
   const romIn = $<HTMLInputElement>('#rom-name');
   if (romIn) romIn.onchange = () => { setRomName(romIn.value.trim().replace(/\.(nds|sav|dsv)$/i, '')); render(); };
   const ep = $('#export-play'); if (ep) ep.onclick = () => doExport(`${getRomName() || 'ma-ville'}.sav`);
@@ -455,7 +481,7 @@ function closeModal() { document.querySelector('.modal-bg')?.remove(); }
 window.addEventListener('beforeunload', e => { if (state.dirty) e.preventDefault(); });
 if ('serviceWorker' in navigator && import.meta.env.PROD && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 
-Promise.all([loadImages(), getTemplate().then(t => { if (t) { state.template = t; try { state.draft.villagers = randomVillagers(new AcwwSave(t).villagers.filter(v => v.exists).length); } catch { /* ignore */ } } })]).finally(async () => {
+Promise.all([loadImages(), getTemplate().then(async t => { if (!t) { try { const r = await fetch('templates/mars.sav'); if (r.ok) t = new Uint8Array(await r.arrayBuffer()); } catch { /* offline */ } } if (t) { state.template = t; try { state.draft.villagers = randomVillagers(new AcwwSave(t).villagers.filter(v => v.exists).length); } catch { /* ignore */ } } })]).finally(async () => {
   if (import.meta.env.VITE_PREVIEW) {
     const { demoSave } = await import('./demo');
     state.save = new AcwwSave(demoSave()); state.fileName = 'exemple.sav';

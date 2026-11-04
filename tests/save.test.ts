@@ -98,3 +98,37 @@ describe('blank saves', () => {
     expect(() => new AcwwSave(new Uint8Array(0x40000).fill(0xff))).toThrow(/vide/);
   });
 });
+
+import fs from 'node:fs';
+import { nativeFruit, replaceFruit, fruitCounts, shopLevel, setShopLevel, houseLevel, setHouseLevel, debt } from '../src/core/town';
+describe('real FR save (Mars)', () => {
+  const raw = () => new Uint8Array(fs.readFileSync(new URL('./mars.sav', import.meta.url)));
+  it('reads the town as the game wrote it', () => {
+    const s = new AcwwSave(raw());
+    expect(s.region).toBe('EUR');
+    expect(s.checksumValid).toBe(true);
+    expect(s.townName).toBe('Mars');
+    expect(s.players[0].name).toBe('Loulou');
+    expect(nativeFruit(s)).toBe(2); // orange
+    expect(shopLevel(s)).toBe(0);
+    expect(houseLevel(s)).toBe(0);
+    expect(debt(s)).toBe(19800);
+  });
+  it('changes fruit, shop and house and stays valid', () => {
+    const s = new AcwwSave(raw());
+    const before = fruitCounts(s)[2];
+    expect(replaceFruit(s, -1, 4)).toBe(before);
+    expect(setShopLevel(s, 3)).toBe(true);
+    expect(setHouseLevel(s, 6)).toBe(true);
+    const out = new AcwwSave(s.export());
+    expect(out.checksumValid).toBe(true);
+    expect(nativeFruit(out)).toBe(4);
+    expect(fruitCounts(out)[4]).toBe(before);
+    expect(shopLevel(out)).toBe(3);
+    expect(houseLevel(out)).toBe(6);
+  });
+  it('round-trips untouched bytes exactly', () => {
+    const r = raw();
+    expect(Buffer.compare(Buffer.from(new AcwwSave(r).export()), Buffer.from(r))).toBe(0);
+  });
+});

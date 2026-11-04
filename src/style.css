@@ -194,3 +194,14 @@ html { background: var(--grass); }
 a.btn.emu-link { font-size: 13px; padding: 7px 12px; border-radius: 12px; text-decoration: none; display: inline-block; font-weight: 600; color: #fff; background: var(--grass); box-shadow: 0 3px 0 var(--grass-dark); }
 .emu ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; line-height: 1.4; }
 .tabs { gap: 3px; padding: 8px 6px 0; } .tab { font-size: 11px; padding: 6px 0 8px; letter-spacing: -.2px; }
+.fruits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.fruit { font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); background: var(--cream); border: 2px solid var(--shell-edge); border-radius: 14px;
+  padding: 8px 2px; cursor: pointer; display: grid; justify-items: center; gap: 2px; transition: transform .12s; }
+.fruit small { font-weight: 400; font-size: 10px; color: var(--ink-soft); } .fruit:hover { transform: translateY(-2px) rotate(-2deg); }
+.fruit.on { border-color: var(--accent); background: var(--paper); box-shadow: 0 3px 0 var(--accent); }
+.fruit-ico { font-size: 24px; }
+.steps { display: grid; gap: 6px; }
+.step { display: flex; gap: 10px; align-items: center; font: inherit; font-size: 14px; color: var(--ink); text-align: left; background: var(--cream);
+  border: 2px solid var(--shell-edge); border-radius: 12px; padding: 7px 10px; cursor: pointer; }
+.step span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px; background: var(--shell-edge); color: var(--ink); flex: none; }
+.step.done span { background: var(--grass-light); } .step.on { border-color: var(--grass); } .step.on span { background: var(--grass); color: #fff; }
